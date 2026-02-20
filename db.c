@@ -6,9 +6,9 @@ int DBCreate(sqlite3 *DB) {
                   "Id INTEGER PRIMARY KEY,"
                   "Description NCHAR(100) NOT NULL,"
                   "IsDeleted INTEGER NOT NULL DEFAULT 0,"
-                  "CreatedAt INTEGER NOT NULL DEFAULT CURRENT_DATE,"
-                  "UpdatedAt INTEGER NOT NULL DEFAULT CURRENT_DATE,"
-                  "DeletedAt INTEGER NOT NULL DEFAULT CURRENT_DATE);";
+                  "CreatedAt INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                  "UpdatedAt INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                  "DeletedAt INTEGER NULL);";
  
     char *err_msg;
     if (sqlite3_exec(DB, query, 0, 0, &err_msg) != SQLITE_OK) {
@@ -50,9 +50,9 @@ int DBAddTask(sqlite3 *DB, char *description) {
     return 0;
 }   
 
-int DBUpdateTask(sqlite3 *DB, int id, char *description, int is_deleted) {
+int DBUpdateTask(sqlite3 *DB, int id, char *description) {
     
-    char *query = "UPDATE Tasks SET Description = ?, IsDeleted = ? WHERE Id = ?;";
+    char *query = "UPDATE Tasks SET Description = ?, UpdatedAt = CURRENT_TIMESTAMP WHERE Id = ?;";
     sqlite3_stmt *stmt;
     int ok;
 
@@ -68,14 +68,7 @@ int DBUpdateTask(sqlite3 *DB, int id, char *description, int is_deleted) {
         sqlite3_finalize(stmt);
         return 1;
     }
-    ok = sqlite3_bind_int(stmt, 2, is_deleted);
-    if (ok != SQLITE_OK) {
-        fprintf(stderr, "Cannot update task: %s\n", sqlite3_errmsg(DB));
-        sqlite3_clear_bindings(stmt);
-        sqlite3_finalize(stmt);
-        return 1;
-    }
-    ok = sqlite3_bind_int(stmt, 3, id);
+    ok = sqlite3_bind_int(stmt, 2, id);
     if (ok != SQLITE_OK) {
         fprintf(stderr, "Cannot update task: %s\n", sqlite3_errmsg(DB));
         sqlite3_clear_bindings(stmt);
@@ -95,8 +88,40 @@ int DBUpdateTask(sqlite3 *DB, int id, char *description, int is_deleted) {
     return 0;
 }   
 
+int DBDeleteTask(sqlite3 *DB, int id) {
+    
+    char *query = "UPDATE Tasks SET IsDeleted = 1, UpdatedAt = CURRENT_TIMESTAMP, DeletedAt = CURRENT_TIMESTAMP WHERE Id = ?;";
+    sqlite3_stmt *stmt;
+    int ok;
+
+    ok = sqlite3_prepare_v2(DB, query, -1, &stmt, 0);
+    if (ok != SQLITE_OK) {
+        fprintf(stderr, "Cannot delete task: %s\n", sqlite3_errmsg(DB));
+        sqlite3_finalize(stmt);
+        return 1;
+    }
+    ok = sqlite3_bind_int(stmt, 1, id);
+    if (ok != SQLITE_OK) {
+        fprintf(stderr, "Cannot delete task: %s\n", sqlite3_errmsg(DB));
+        sqlite3_clear_bindings(stmt);
+        sqlite3_finalize(stmt);
+        return 1;
+    }
+    ok = sqlite3_step(stmt);
+    if (ok != SQLITE_DONE) {
+        fprintf(stderr, "Cannot delete task: %s\n", sqlite3_errmsg(DB));
+        sqlite3_clear_bindings(stmt);
+        sqlite3_finalize(stmt);
+        return 1;
+    }
+    // Cleanup 
+    sqlite3_clear_bindings(stmt);
+    sqlite3_finalize(stmt);
+    return 0;
+}   
+
 int DBListTasks(sqlite3 *DB) {
-    char *query = "SELECT * FROM Tasks;";
+    char *query = "SELECT Id, Description, IsDeleted, unixepoch(CreatedAt), unixepoch(UpdatedAt), unixepoch(DeletedAt) FROM Tasks;";
     sqlite3_stmt *stmt;
     int ok;
 
