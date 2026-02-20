@@ -1,2 +1,2 @@
 #!/bin/bash
-clang -o todo -lsqlite3 todo.c db.c
+clang -lsqlite3 -o build/todo todo.c db.c
