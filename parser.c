@@ -1,6 +1,7 @@
-#include "parser.h"
+#include "todo.h"
 
 void PrintHelp() {
+    printf("Version: %.1f\n", VERSION);
     printf("todo <action> [id] [arguments]\n");
 }
 
